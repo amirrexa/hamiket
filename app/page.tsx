@@ -171,18 +171,28 @@ export default function NodeTreeEditor() {
       const parent = nodesById[child.parentId];
       if (!parent) return null;
 
-      const parentMidY = parent.row * ROW_SPACING + NODE_HEIGHT / 2;
-      const childMidY = child.row * ROW_SPACING + NODE_HEIGHT / 2;
-      const parentAnchorX = parent.col * COLUMN_SPACING + NODE_WIDTH;
-      const childAnchorX = child.col * COLUMN_SPACING;
+      const parentX = parent.col * COLUMN_SPACING + NODE_WIDTH;
+      const parentY = parent.row * ROW_SPACING + NODE_HEIGHT / 2;
+      const childX = child.col * COLUMN_SPACING;
+      const childY = child.row * ROW_SPACING + NODE_HEIGHT / 2;
 
-      const dx = childAnchorX - parentAnchorX;
-      const dy = childMidY - parentMidY;
-      const svgTop = Math.min(parentMidY, childMidY) - 20;
+      const dx = parentX - childX;
+      const dy = childY - parentY;
+      const svgTop = Math.min(parentY, childY) - 10;
       const svgHeight = Math.abs(dy) + 40;
       const svgWidth = Math.abs(dx);
 
-      const pathData = `M ${svgWidth},${parentMidY - svgTop} C ${svgWidth * 0.5},${parentMidY - svgTop} ${svgWidth * 0.5},${childMidY - svgTop} 0,${childMidY - svgTop}`;
+      const startX = Math.abs(dx);
+      const startY = parentY - svgTop + 8;
+      const midX = Math.max(svgWidth - 40, 40);
+      const endY = childY - svgTop + 8;
+
+      const path = `
+        M ${startX},${startY}
+        H ${midX}
+        V ${endY}
+        H 0
+      `;
 
       return (
         <svg
@@ -190,7 +200,7 @@ export default function NodeTreeEditor() {
           style={{
             position: 'absolute',
             top: svgTop,
-            right: parentAnchorX,
+            right: childX,
             width: svgWidth,
             height: svgHeight,
             overflow: 'visible',
@@ -198,7 +208,7 @@ export default function NodeTreeEditor() {
             zIndex: 0
           }}
         >
-          <path d={pathData} fill="none" stroke={theme.palette.divider} strokeWidth={2} />
+          <path d={path} fill="none" stroke={theme.palette.divider} strokeWidth={2} />
         </svg>
       );
     });
@@ -213,7 +223,7 @@ export default function NodeTreeEditor() {
         style={{ right: `${node.col * COLUMN_SPACING}px`, top: `${node.row * ROW_SPACING + 50}px`, zIndex: 1 }}
       >
         <Box
-          className={`rounded-xl border border-gray-300 px-4 py-2 shadow-md cursor-pointer hover:shadow-lg bg-white ${node.isCut ? 'opacity-70' : ''}`}
+          className={`rounded-xl border border-gray-300 px-4 py-2 shadow-md cursor-pointer hover:shadow-lg bg-white ${node.isCut ? 'opacity-50' : ''}`}
           sx={{ width: NODE_WIDTH, height: NODE_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           <span className="font-semibold whitespace-nowrap">{node.label}</span>
