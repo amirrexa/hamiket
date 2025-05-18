@@ -135,7 +135,7 @@ export default function NodeTreeEditor() {
     if (!contextNode) return;
     if (contextNode.id === 'root') return;
 
-    const cutNodeMarked = markCutNodes(contextNode); // marks isCut=true on node and children
+    const cutNodeMarked = markCutNodes(contextNode);
 
     setNodes(prevNodes => replaceNodeInTree(prevNodes, cutNodeMarked.id, cutNodeMarked));
 
@@ -190,7 +190,7 @@ export default function NodeTreeEditor() {
     const nodeToPaste =
       clipboard.mode === 'copy'
         ? deepClone(clipboard.node)
-        : clearCutFlags(clipboard.node); // recursively clear isCut on cut-paste
+        : clearCutFlags(clipboard.node);
 
     updatedTree = updateTree(updatedTree, contextNode.id, (n) => {
       n.children = [...n.children, nodeToPaste];
