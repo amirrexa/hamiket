@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Box, Menu, MenuItem, Modal, TextField, Button, useTheme } from '@mui/material';
+import { Box, Menu, MenuItem, Modal, TextField, Button } from '@mui/material';
 import { v4 as uuidv4 } from 'uuid';
 
 interface NodeItem {
@@ -21,8 +21,6 @@ const NODE_HEIGHT = 60;
 const RootLabel = 'حساب‌های اصلی';
 
 export default function NodeTreeEditor() {
-  const theme = useTheme();
-
   const [nodes, setNodes] = useState<NodeItem[]>([{
     id: 'root',
     label: RootLabel,
