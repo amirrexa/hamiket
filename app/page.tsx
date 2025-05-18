@@ -118,19 +118,33 @@ export default function NodeTreeEditor() {
     setModalOpen(false);
   };
 
+  function replaceNodeInTree(nodes: NodeItem[], targetId: string, updatedNode: NodeItem): NodeItem[] {
+    return nodes.map(node => {
+      if (node.id === targetId) {
+        return updatedNode;
+      }
+      if (node.children.length > 0) {
+        return {
+          ...node,
+          children: replaceNodeInTree(node.children, targetId, updatedNode),
+        };
+      }
+      return node;
+    });
+  }
+
   const handleCut = () => {
     if (!contextNode) return;
     if (contextNode.id === 'root') return;
 
-    const cutNodeMarked = markCutNodes(contextNode);
+    const cutNodeMarked = markCutNodes(contextNode); // marks isCut=true on node and children
 
-    setNodes(prev =>
-      prev.map(n => (n.id === cutNodeMarked.id ? cutNodeMarked : n))
-    );
+    setNodes(prevNodes => replaceNodeInTree(prevNodes, cutNodeMarked.id, cutNodeMarked));
 
     setClipboard({ mode: 'cut', node: cutNodeMarked });
     setContextMenu(null);
   };
+
 
 
   const handleCopy = () => {
@@ -150,6 +164,12 @@ export default function NodeTreeEditor() {
     setNodes(recalculated);
     handleCloseContextMenu();
   };
+
+  const clearCutFlags = (node: NodeItem): NodeItem => ({
+    ...node,
+    isCut: false,
+    children: node.children.map(clearCutFlags),
+  });
 
   const handlePaste = () => {
     if (!contextNode || !clipboard || contextNode.id === clipboard.node.id) return;
@@ -172,7 +192,7 @@ export default function NodeTreeEditor() {
     const nodeToPaste =
       clipboard.mode === 'copy'
         ? deepClone(clipboard.node)
-        : { ...clipboard.node, isCut: false };
+        : clearCutFlags(clipboard.node); // recursively clear isCut on cut-paste
 
     updatedTree = updateTree(updatedTree, contextNode.id, (n) => {
       n.children = [...n.children, nodeToPaste];
@@ -183,6 +203,7 @@ export default function NodeTreeEditor() {
     setClipboard(null);
     handleCloseContextMenu();
   };
+
 
   const renderConnectors = () => {
     const flatNodes = flattenTree(nodes);
@@ -259,10 +280,11 @@ export default function NodeTreeEditor() {
       >
         <Box
           position={"relative"}
-          className={`rounded-xl border-[2px] border-[#C48484] px-4 py-2 shadow-md cursor-pointer hover:shadow-lg bg-white`}
+          className={`rounded-xl border-[2px] border-[#C48484] px-4 py-2 shadow-md cursor-pointer hover:shadow-lg`}
           sx={{
-            backgroundColor: node.id === 'root' ? '#C48484' : 'initial',
-            opacity: node.isCut ? 0.5 : 1, direction: 'rtl', width: NODE_WIDTH, height: NODE_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center'
+            zIndex: 2,
+            backgroundColor: node.id === 'root' ? '#C48484' : 'white',
+            opacity: node.isCut ? 0.1 : 1, direction: 'rtl', width: NODE_WIDTH, height: NODE_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}
         >
           <span className="font-semibold whitespace-nowrap">{node.label}</span>
