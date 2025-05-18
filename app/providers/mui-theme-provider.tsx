@@ -7,6 +7,7 @@ const theme = createTheme({
     typography: {
         fontFamily: 'inherit',
     },
+    direction: 'rtl',
     palette: {
         mode: 'light',
     },

@@ -50,6 +50,14 @@ export default function NodeTreeEditor() {
 
   const handleCloseContextMenu = () => setContextMenu(null);
 
+  function markCutNodes(node: NodeItem): NodeItem {
+    return {
+      ...node,
+      isCut: true,
+      children: node.children.map(markCutNodes),
+    };
+  }
+
   const flattenTree = (tree: NodeItem[]): NodeItem[] => {
     const list: NodeItem[] = [];
     const walk = (node: NodeItem) => {
@@ -78,7 +86,7 @@ export default function NodeTreeEditor() {
     const updated: NodeItem[] = [];
 
     for (let node of tree) {
-      const [childrenWithLayout, nextRow] = recalculateLayout(node.children, row + 1, col + 1);
+      const [childrenWithLayout, nextRow] = recalculateLayout(node.children, row, col + 1);
       const nodeWithLayout = { ...node, col, row, children: childrenWithLayout };
       updated.push(nodeWithLayout);
       row = Math.max(row + 1, nextRow);
@@ -86,6 +94,7 @@ export default function NodeTreeEditor() {
 
     return [updated, row];
   };
+
 
   const handleModalSubmit = () => {
     if (!contextNode || !newLabel.trim()) return;
@@ -110,12 +119,19 @@ export default function NodeTreeEditor() {
   };
 
   const handleCut = () => {
-    if (!contextNode || contextNode.id === 'root') return;
-    setClipboard({ mode: 'cut', node: contextNode });
-    const updated = updateTree(nodes, contextNode.id, (n) => (n.isCut = true));
-    setNodes(updated);
-    handleCloseContextMenu();
+    if (!contextNode) return;
+    if (contextNode.id === 'root') return;
+
+    const cutNodeMarked = markCutNodes(contextNode);
+
+    setNodes(prev =>
+      prev.map(n => (n.id === cutNodeMarked.id ? cutNodeMarked : n))
+    );
+
+    setClipboard({ mode: 'cut', node: cutNodeMarked });
+    setContextMenu(null);
   };
+
 
   const handleCopy = () => {
     if (!contextNode || contextNode.id === 'root') return;
@@ -147,72 +163,91 @@ export default function NodeTreeEditor() {
       children: node.children.map(deepClone),
     });
 
-    const pastedNode = clipboard.mode === 'copy' ? deepClone(clipboard.node) : clipboard.node;
-    const updated = updateTree(nodes, contextNode.id, (n) => n.children.push(pastedNode));
+    let updatedTree = nodes;
 
-    const removeFrom = (list: NodeItem[]): NodeItem[] => {
-      return list
-        .filter((n) => n.id !== clipboard.node.id)
-        .map((n) => ({ ...n, children: removeFrom(n.children) }));
-    };
+    if (clipboard.mode === 'cut') {
+      updatedTree = removeFrom(updatedTree);
+    }
 
-    const nextTree = clipboard.mode === 'cut' ? removeFrom(updated) : updated;
-    setClipboard(null);
-    const [recalculated] = recalculateLayout(nextTree);
+    const nodeToPaste =
+      clipboard.mode === 'copy'
+        ? deepClone(clipboard.node)
+        : { ...clipboard.node, isCut: false };
+
+    updatedTree = updateTree(updatedTree, contextNode.id, (n) => {
+      n.children = [...n.children, nodeToPaste];
+    });
+
+    const [recalculated] = recalculateLayout(updatedTree);
     setNodes(recalculated);
+    setClipboard(null);
     handleCloseContextMenu();
   };
 
-  const nodesById = useMemo(() => Object.fromEntries(flattenTree(nodes).map(n => [n.id, n])), [nodes]);
-
   const renderConnectors = () => {
-    return flattenTree(nodes).map((child) => {
-      if (!child.parentId) return null;
-      const parent = nodesById[child.parentId];
-      if (!parent) return null;
+    const flatNodes = flattenTree(nodes);
 
-      const parentX = parent.col * COLUMN_SPACING + NODE_WIDTH;
-      const parentY = parent.row * ROW_SPACING + NODE_HEIGHT / 2;
-      const childX = child.col * COLUMN_SPACING;
-      const childY = child.row * ROW_SPACING + NODE_HEIGHT / 2;
+    return (
+      <svg
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          pointerEvents: 'none',
+          width: '100%',
+          height: '100%',
+          overflow: 'visible',
+          zIndex: 0,
+          transform: 'scaleX(-1)'
+        }}
+      >
+        {flatNodes.map((child) => {
+          if (!child.parentId) return null;
+          const parent = flatNodes.find(n => n.id === child.parentId);
+          if (!parent) return null;
 
-      const dx = parentX - childX;
-      const dy = childY - parentY;
-      const svgTop = Math.min(parentY, childY) - 10;
-      const svgHeight = Math.abs(dy) + 40;
-      const svgWidth = Math.abs(dx);
+          const parentX = parent.col * COLUMN_SPACING + NODE_WIDTH;
+          const childX = child.col * COLUMN_SPACING;
 
-      const startX = Math.abs(dx);
-      const startY = parentY - svgTop + 8;
-      const midX = Math.max(svgWidth - 40, 40);
-      const endY = childY - svgTop + 8;
+          const VERTICAL_OFFSET = 48;
 
-      const path = `
-        M ${startX},${startY}
-        H ${midX}
-        V ${endY}
-        H 0
-      `;
+          const parentY = parent.row * ROW_SPACING + NODE_HEIGHT / 2 + VERTICAL_OFFSET;
+          const childY = child.row * ROW_SPACING + NODE_HEIGHT / 2 + VERTICAL_OFFSET;
 
-      return (
-        <svg
-          key={`link-${child.id}`}
-          style={{
-            position: 'absolute',
-            top: svgTop,
-            right: childX,
-            width: svgWidth,
-            height: svgHeight,
-            overflow: 'visible',
-            pointerEvents: 'none',
-            zIndex: 0
-          }}
-        >
-          <path d={path} fill="none" stroke={theme.palette.divider} strokeWidth={2} />
-        </svg>
-      );
-    });
+          const horizontalGap = 20;
+
+          const points = [
+            [parentX, parentY],
+            [parentX + horizontalGap, parentY],
+            [parentX + horizontalGap, childY],
+            [childX, childY],
+          ]
+            .map(point => point.join(','))
+            .join(' ');
+
+          return (
+            <polyline
+              key={child.id}
+              points={points}
+              fill="none"
+              stroke={theme.palette.mode === 'dark' ? '#ddd' : '#444'}
+              strokeWidth={2}
+            />
+          );
+        })}
+      </svg>
+    );
   };
+
+
+
+
+  const removeFrom = (list: NodeItem[]): NodeItem[] => {
+    return list
+      .filter((n) => n.id !== clipboard?.node.id)
+      .map((n) => ({ ...n, children: removeFrom(n.children) }));
+  };
+
 
   const renderNodes = () => {
     return flattenTree(nodes).map((node) => (
@@ -223,8 +258,12 @@ export default function NodeTreeEditor() {
         style={{ right: `${node.col * COLUMN_SPACING}px`, top: `${node.row * ROW_SPACING + 50}px`, zIndex: 1 }}
       >
         <Box
-          className={`rounded-xl border border-gray-300 px-4 py-2 shadow-md cursor-pointer hover:shadow-lg bg-white ${node.isCut ? 'opacity-50' : ''}`}
-          sx={{ width: NODE_WIDTH, height: NODE_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          position={"relative"}
+          className={`rounded-xl border border-gray-300 px-4 py-2 shadow-md cursor-pointer hover:shadow-lg bg-white`}
+          sx={{
+            bgcolor: node.isCut ? 'rgba(0,0,0,0.2)' : 'background.paper',
+            opacity: node.isCut ? 0.5 : 1, direction: 'rtl', width: NODE_WIDTH, height: NODE_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}
         >
           <span className="font-semibold whitespace-nowrap">{node.label}</span>
         </Box>
@@ -246,7 +285,11 @@ export default function NodeTreeEditor() {
         <MenuItem onClick={handleCut}>برش</MenuItem>
         <MenuItem onClick={handleCopy}>کپی</MenuItem>
         <MenuItem onClick={handlePaste} disabled={!clipboard}>چسباندن</MenuItem>
-        <MenuItem onClick={handleDelete}>حذف</MenuItem>
+        <MenuItem onClick={handleDelete} disabled={
+          !contextNode ||
+          contextNode.id === 'root' ||
+          (contextNode.children && contextNode.children.length > 0)
+        }>حذف</MenuItem>
         <MenuItem onClick={handleAddChild}>افزودن فرزند</MenuItem>
       </Menu>
 
@@ -260,8 +303,8 @@ export default function NodeTreeEditor() {
             inputProps={{ dir: 'rtl' }}
           />
           <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outlined" onClick={() => setModalOpen(false)}>لغو</Button>
             <Button variant="contained" onClick={handleModalSubmit}>افزودن</Button>
+            <Button variant="outlined" onClick={() => setModalOpen(false)}>لغو</Button>
           </div>
         </Box>
       </Modal>
