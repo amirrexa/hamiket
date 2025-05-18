@@ -230,7 +230,7 @@ export default function NodeTreeEditor() {
               key={child.id}
               points={points}
               fill="none"
-              stroke={theme.palette.mode === 'dark' ? '#ddd' : '#444'}
+              stroke={'#B3B3B3'}
               strokeWidth={2}
             />
           );
@@ -259,9 +259,9 @@ export default function NodeTreeEditor() {
       >
         <Box
           position={"relative"}
-          className={`rounded-xl border border-gray-300 px-4 py-2 shadow-md cursor-pointer hover:shadow-lg bg-white`}
+          className={`rounded-xl border-[2px] border-[#C48484] px-4 py-2 shadow-md cursor-pointer hover:shadow-lg bg-white`}
           sx={{
-            bgcolor: node.isCut ? 'rgba(0,0,0,0.2)' : 'background.paper',
+            backgroundColor: node.id === 'root' ? '#C48484' : 'initial',
             opacity: node.isCut ? 0.5 : 1, direction: 'rtl', width: NODE_WIDTH, height: NODE_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}
         >
