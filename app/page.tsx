@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Box, Menu, MenuItem, Modal, TextField, Button, useTheme } from '@mui/material';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -85,7 +85,7 @@ export default function NodeTreeEditor() {
     let row = startRow;
     const updated: NodeItem[] = [];
 
-    for (let node of tree) {
+    for (const node of tree) {
       const [childrenWithLayout, nextRow] = recalculateLayout(node.children, row, col + 1);
       const nodeWithLayout = { ...node, col, row, children: childrenWithLayout };
       updated.push(nodeWithLayout);
