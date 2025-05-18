@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import MuiThemeProvider from './providers/mui-theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Node Tree Editor',
+  title: 'Hamiket Node Tree',
   description: 'Next.js + MUI + Tailwind',
 };
 
